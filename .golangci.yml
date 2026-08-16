@@ -1,0 +1,28 @@
+version: "2"
+linters:
+  enable:
+    - gocritic
+    - gosec
+    #- revive
+    - bodyclose
+    - contextcheck
+    - errorlint
+  settings:
+    govet:
+      enable:
+        - shadow
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - examples/
+      - _test\.go$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - examples/
+      - _test\.go$
