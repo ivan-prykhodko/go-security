@@ -1,0 +1,4 @@
+github.com/ivan-prykhodko/go-security v0.0.1 h1:Lf8qKk6Feu1ICMW7mg1ILD+FPwtblb7LpYyhiAuZufQ=
+github.com/ivan-prykhodko/go-security v0.0.1/go.mod h1:dy/tCkEzmqFV3jYPNhU6qT98HRvGMqa4/rMyOC1+hs8=
+golang.org/x/sync v0.22.0 h1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=
+golang.org/x/sync v0.22.0/go.mod h1:9xrNwdLfx4jkKbNva9FpL6vEN7evnE43NNNJQ2LF3+0=
