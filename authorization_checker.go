@@ -2,25 +2,29 @@ package security
 
 import "context"
 
-type AuthorizationChecker[A, T any] interface {
-	IsGranted(ctx context.Context, actor A, attribute Attribute, subject T) (bool, error)
+type AuthorizationChecker[S, O any] interface {
+	IsGranted(ctx context.Context, subject S, attribute Attribute, object O) (bool, []string, error)
 }
 
-type authorizationChecker[A, T any] struct {
-	adm AccessDecisionManager[A, T]
+type authorizationChecker[S, O any] struct {
+	adm AccessDecisionManager[S, O]
 }
 
-func NewAuthorizationChecker[A, T any](adm AccessDecisionManager[A, T]) AuthorizationChecker[A, T] {
-	return &authorizationChecker[A, T]{
+func NewAuthorizationChecker[S, O any](adm AccessDecisionManager[S, O]) AuthorizationChecker[S, O] {
+	return &authorizationChecker[S, O]{
 		adm: adm,
 	}
 }
 
-func (a *authorizationChecker[A, T]) IsGranted(ctx context.Context, actor A, attribute Attribute, subject T) (bool, error) {
-	decision, err := a.adm.Decide(ctx, actor, attribute, subject)
+func (a *authorizationChecker[S, O]) IsGranted(
+	ctx context.Context,
+	subject S,
+	attribute Attribute,
+	object O,
+) (bool, []string, error) {
+	decision, err := a.adm.Decide(ctx, subject, attribute, object)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
-	// TODO: log decision if needed
-	return decision.Granted, nil
+	return decision.Granted, decision.Reasons, nil
 }

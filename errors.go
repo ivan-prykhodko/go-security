@@ -1,7 +1,21 @@
 package security
 
-import "errors"
+type AccessDeniedError struct {
+	message string
+	reasons []string
+}
 
-var (
-	ErrAccessDenied = errors.New("access denied")
-)
+func NewAccessDeniedError(reasons []string) *AccessDeniedError {
+	return &AccessDeniedError{
+		message: "access denied",
+		reasons: reasons,
+	}
+}
+
+func (e *AccessDeniedError) Error() string {
+	return e.message
+}
+
+func (e *AccessDeniedError) Reasons() []string {
+	return e.reasons
+}

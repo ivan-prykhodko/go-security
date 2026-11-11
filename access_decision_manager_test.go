@@ -10,17 +10,17 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockVoter[A, T any] struct {
+type MockVoter[S, O any] struct {
 	mock.Mock
 }
 
-func (m *MockVoter[A, T]) Vote(ctx context.Context, actor A, attribute Attribute, subject T) (VoteDecision, error) {
-	args := m.Called(ctx, actor, attribute, subject)
+func (m *MockVoter[S, O]) Vote(ctx context.Context, subject S, attribute Attribute, object O) (VoteDecision, error) {
+	args := m.Called(ctx, subject, attribute, object)
 	return args.Get(0).(VoteDecision), args.Error(1)
 }
 
-func (m *MockVoter[A, T]) Supports(permission Attribute, subject T) bool {
-	args := m.Called(permission, subject)
+func (m *MockVoter[S, O]) Supports(permission Attribute, object O) bool {
+	args := m.Called(permission, object)
 	return args.Bool(0)
 }
 
@@ -29,8 +29,10 @@ func TestAccessDecisionManager_Decide(t *testing.T) {
 		mockVoter := new(MockVoter[Actor, Post])
 		actor := Actor{ID: "user1"}
 		post := Post{ID: 1, Name: "doc1"}
-		mockVoter.On("Supports", "read", post).Return(true)
-		mockVoter.On("Vote", mock.Anything, actor, "read", post).Return(VoteDecision{State: AccessGranted, Reason: "allowed"}, nil)
+		mockVoter.On("Supports", "read", post).
+			Return(true)
+		mockVoter.On("Vote", mock.Anything, actor, "read", post).
+			Return(VoteDecision{State: AccessGranted, Reason: "allowed"}, nil)
 
 		strategy := NewAffirmativeStrategy(false)
 		adm := NewAccessDecisionManager[Actor, Post](Voters[Actor, Post]{mockVoter}, strategy)
@@ -47,8 +49,10 @@ func TestAccessDecisionManager_Decide(t *testing.T) {
 		actor := Actor{ID: "user1"}
 		post := Post{ID: 1, Name: "doc1"}
 		expectedErr := errors.New("voter error")
-		mockVoter.On("Supports", "read", post).Return(true)
-		mockVoter.On("Vote", mock.Anything, actor, "read", post).Return(VoteDecision{}, expectedErr)
+		mockVoter.On("Supports", "read", post).
+			Return(true)
+		mockVoter.On("Vote", mock.Anything, actor, "read", post).
+			Return(VoteDecision{}, expectedErr)
 
 		strategy := NewAffirmativeStrategy(false)
 		adm := NewAccessDecisionManager[Actor, Post](Voters[Actor, Post]{mockVoter}, strategy)
@@ -71,7 +75,8 @@ func TestAccessDecisionManager_Decide(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 		}).Return(VoteDecision{State: AccessDenied, Reason: "denied 1"}, nil)
 
-		mockVoter2.On("Vote", mock.Anything, actor, "read", post).Return(VoteDecision{State: AccessGranted, Reason: "allowed 2"}, nil)
+		mockVoter2.On("Vote", mock.Anything, actor, "read", post).
+			Return(VoteDecision{State: AccessGranted, Reason: "allowed 2"}, nil)
 
 		strategy := NewAffirmativeStrategy(false)
 		adm := NewAccessDecisionManager[Actor, Post](Voters[Actor, Post]{mockVoter1, mockVoter2}, strategy)

@@ -9,12 +9,17 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockAccessDecisionManager[A, T any] struct {
+type MockAccessDecisionManager[S, O any] struct {
 	mock.Mock
 }
 
-func (m *MockAccessDecisionManager[A, T]) Decide(ctx context.Context, actor A, attribute Attribute, subject T) (Decision, error) {
-	args := m.Called(ctx, actor, attribute, subject)
+func (m *MockAccessDecisionManager[S, O]) Decide(
+	ctx context.Context,
+	subject S,
+	attribute Attribute,
+	object O,
+) (Decision, error) {
+	args := m.Called(ctx, subject, attribute, object)
 	return args.Get(0).(Decision), args.Error(1)
 }
 
@@ -23,10 +28,11 @@ func TestAuthorizationChecker_IsGranted(t *testing.T) {
 		mockADM := new(MockAccessDecisionManager[Actor, Post])
 		actor := Actor{ID: "user1"}
 		post := Post{ID: 1, Name: "doc1"}
-		mockADM.On("Decide", mock.Anything, actor, "read", post).Return(Decision{Granted: true}, nil)
+		mockADM.On("Decide", mock.Anything, actor, "read", post).
+			Return(Decision{Granted: true}, nil)
 
 		checker := NewAuthorizationChecker[Actor, Post](mockADM)
-		granted, err := checker.IsGranted(t.Context(), actor, "read", post)
+		granted, _, err := checker.IsGranted(t.Context(), actor, "read", post)
 
 		assert.NoError(t, err)
 		assert.True(t, granted)
@@ -37,13 +43,19 @@ func TestAuthorizationChecker_IsGranted(t *testing.T) {
 		mockADM := new(MockAccessDecisionManager[Actor, Post])
 		actor := Actor{ID: "user1"}
 		post := Post{ID: 1, Name: "doc1"}
-		mockADM.On("Decide", mock.Anything, actor, "read", post).Return(Decision{Granted: false}, nil)
+		reason := "access to doc1 is forbidden by security policy"
+		mockADM.On("Decide", mock.Anything, actor, "read", post).
+			Return(Decision{
+				Granted: false,
+				Reasons: []string{reason},
+			}, nil)
 
 		checker := NewAuthorizationChecker[Actor, Post](mockADM)
-		granted, err := checker.IsGranted(t.Context(), actor, "read", post)
+		granted, reasons, err := checker.IsGranted(t.Context(), actor, "read", post)
 
 		assert.NoError(t, err)
 		assert.False(t, granted)
+		assert.Equal(t, []string{reason}, reasons)
 		mockADM.AssertExpectations(t)
 	})
 
@@ -52,10 +64,11 @@ func TestAuthorizationChecker_IsGranted(t *testing.T) {
 		actor := Actor{ID: "user1"}
 		post := Post{ID: 1, Name: "doc1"}
 		expectedErr := errors.New("adm error")
-		mockADM.On("Decide", mock.Anything, actor, "read", post).Return(Decision{}, expectedErr)
+		mockADM.On("Decide", mock.Anything, actor, "read", post).
+			Return(Decision{}, expectedErr)
 
 		checker := NewAuthorizationChecker[Actor, Post](mockADM)
-		_, err := checker.IsGranted(t.Context(), actor, "read", post)
+		_, _, err := checker.IsGranted(t.Context(), actor, "read", post)
 
 		assert.ErrorIs(t, err, expectedErr)
 		mockADM.AssertExpectations(t)

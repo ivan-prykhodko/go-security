@@ -52,14 +52,14 @@ type PostAuthorizer struct {
 	authorizer security.Authorizer[Actor, Post]
 }
 
-func (a *PostAuthorizer) AuthorizeCreate(ctx context.Context, actor Actor, subject Post) error {
+func (a *PostAuthorizer) AuthorizeCreate(ctx context.Context, subject Actor, object Post) error {
 	// Note: other security policies
-	return a.authorizer.Authorize(ctx, actor, PostCreateAttribute, subject)
+	return a.authorizer.Authorize(ctx, subject, PostCreateAttribute, object)
 }
 
-func (a *PostAuthorizer) AuthorizeUpdate(ctx context.Context, actor Actor, subject Post) error {
+func (a *PostAuthorizer) AuthorizeUpdate(ctx context.Context, subject Actor, object Post) error {
 	// Note: other security policies
-	return a.authorizer.Authorize(ctx, actor, PostUpdateAttribute, subject)
+	return a.authorizer.Authorize(ctx, subject, PostUpdateAttribute, object)
 }
 
 type PostVoter struct {
@@ -69,14 +69,19 @@ func NewPostVoter() security.Voter[Actor, Post] {
 	return &PostVoter{}
 }
 
-func (v PostVoter) Supports(attribute security.Attribute, subject Post) bool {
+func (v PostVoter) Supports(attribute security.Attribute, object Post) bool {
 	return attribute == PostUpdateAttribute ||
 		attribute == PostCreateAttribute ||
 		attribute == PostDeleteAttribute
 }
 
-func (v PostVoter) Vote(ctx context.Context, actor Actor, attribute security.Attribute, subject Post) (security.VoteDecision, error) {
-	// Note: check if the actor has permissions, is owner, belongs to a tenancy, ReBAC, etc.
+func (v PostVoter) Vote(
+	ctx context.Context,
+	subject Actor,
+	attribute security.Attribute,
+	object Post,
+) (security.VoteDecision, error) {
+	// Note: check if the subject has permissions, is owner, belongs to a tenancy, ReBAC, etc.
 	return security.VoteDecision{
 		State:  security.AccessGranted,
 		Reason: "...",

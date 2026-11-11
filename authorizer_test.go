@@ -9,13 +9,22 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockAuthorizationChecker[A, T any] struct {
+type MockAuthorizationChecker[S, O any] struct {
 	mock.Mock
 }
 
-func (m *MockAuthorizationChecker[A, T]) IsGranted(ctx context.Context, actor A, attribute Attribute, subject T) (bool, error) {
-	args := m.Called(ctx, actor, attribute, subject)
-	return args.Bool(0), args.Error(1)
+func (m *MockAuthorizationChecker[S, O]) IsGranted(
+	ctx context.Context,
+	subject S,
+	attribute Attribute,
+	object O,
+) (bool, []string, error) {
+	args := m.Called(ctx, subject, attribute, object)
+	var reasons []string
+	if args.Get(1) != nil {
+		reasons = args.Get(1).([]string)
+	}
+	return args.Bool(0), reasons, args.Error(2)
 }
 
 func TestAuthorizer_Authorize(t *testing.T) {
@@ -23,7 +32,8 @@ func TestAuthorizer_Authorize(t *testing.T) {
 		mockChecker := new(MockAuthorizationChecker[Actor, Post])
 		actor := Actor{ID: "user1"}
 		post := Post{ID: 1, Name: "doc1"}
-		mockChecker.On("IsGranted", mock.Anything, actor, "read", post).Return(true, nil)
+		mockChecker.On("IsGranted", mock.Anything, actor, "read", post).
+			Return(true, nil, nil)
 
 		authorizer := NewAuthorizer[Actor, Post](mockChecker)
 		err := authorizer.Authorize(t.Context(), actor, "read", post)
@@ -36,12 +46,14 @@ func TestAuthorizer_Authorize(t *testing.T) {
 		mockChecker := new(MockAuthorizationChecker[Actor, Post])
 		actor := Actor{ID: "user1"}
 		post := Post{ID: 1, Name: "doc1"}
-		mockChecker.On("IsGranted", mock.Anything, actor, "read", post).Return(false, nil)
+		mockChecker.On("IsGranted", mock.Anything, actor, "read", post).
+			Return(false, []string{"some reason"}, nil)
 
 		authorizer := NewAuthorizer[Actor, Post](mockChecker)
 		err := authorizer.Authorize(t.Context(), actor, "read", post)
 
-		assert.ErrorIs(t, err, ErrAccessDenied)
+		var accessDeniedError *AccessDeniedError
+		assert.ErrorAs(t, err, &accessDeniedError)
 		mockChecker.AssertExpectations(t)
 	})
 
@@ -50,7 +62,8 @@ func TestAuthorizer_Authorize(t *testing.T) {
 		actor := Actor{ID: "user1"}
 		post := Post{ID: 1, Name: "doc1"}
 		expectedErr := errors.New("checker error")
-		mockChecker.On("IsGranted", mock.Anything, actor, "read", post).Return(false, expectedErr)
+		mockChecker.On("IsGranted", mock.Anything, actor, "read", post).
+			Return(false, nil, expectedErr)
 
 		authorizer := NewAuthorizer[Actor, Post](mockChecker)
 		err := authorizer.Authorize(t.Context(), actor, "read", post)

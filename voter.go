@@ -2,11 +2,11 @@ package security
 
 import "context"
 
-type Voters[A, T any] []Voter[A, T]
+type Voters[S, O any] []Voter[S, O]
 
-type Voter[A, T any] interface {
-	Vote(ctx context.Context, actor A, attribute Attribute, subject T) (VoteDecision, error)
-	Supports(permission Attribute, subject T) bool
+type Voter[S, O any] interface {
+	Vote(ctx context.Context, subject S, attribute Attribute, object O) (VoteDecision, error)
+	Supports(permission Attribute, object O) bool
 }
 
 type VoteDecision struct {
