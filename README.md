@@ -4,12 +4,12 @@
 
 ## What is it for?
 
-This package provides an implementation of a voter-based access decision system, similar to what you might find in frameworks like Symfony (PHP) or Spring Security (Java). It allows you to decouple your authorization logic into small, reusable "Voters" and combine them using different strategies to make a final access decision.
+This package provides an implementation of a voter-based access decision system. It allows you to decouple your authorization logic into small, reusable "Voters" and combine them using different strategies to make a final access decision.
 
 ## Features
 
-- **Type-safe**: Uses Go generics to support any type for Actors (users, services) and Subjects (resources being accessed).
-- **Voter Architecture**: Easily add or remove authorization logic by implementing the `Voter` interface.
+- **Type-safe**: Uses Go generics to support any type for Subjects (actors, users, services) and Objects (resources being accessed).
+- **Voter Architecture**: Add or remove authorization logic by implementing the `Voter` interface.
 - **Flexible Strategies**: Choose between `Affirmative` (one "grant" is enough) or `Unanimous` (all must "grant") strategies.
 
 ## Installation
@@ -21,10 +21,10 @@ go get github.com/ivan-prykhodko/go-security
 ## Core Concepts
 
 - **Attribute**: A string representing the action being performed (e.g., `"post.edit"`, `"user.create"`).
-- **Voter**: A component that decides whether to grant, deny, or abstain from an access request based on the actor, attribute, and subject.
+- **Voter**: A component that decides whether to grant, deny, or abstain from an access request based on the subject, attribute, and object.
 - **AccessDecisionManager**: Orchestrates multiple voters and uses a `Strategy` to make the final decision.
 - **AuthorizationChecker**: A higher-level service to check if access is granted.
-- **Authorizer**: The primary entry point, which returns `security.ErrAccessDenied` if access is not granted.
+- **Authorizer**: The primary entry point, which returns `security.AccessDeniedError` if access is not granted.
 
 ## Usage Example
 
@@ -57,22 +57,19 @@ const (
 // 1. Implement a Voter
 type PostVoter struct{}
 
-func (v PostVoter) Supports(attribute security.Attribute, subject Post) bool {
+func (v PostVoter) Supports(attribute security.Attribute, object Post) bool {
 	return attribute == PostCreateAttribute || attribute == PostUpdateAttribute
 }
 
-func (v PostVoter) Vote(ctx context.Context, actor Actor, attribute security.Attribute, subject Post) (security.VoteDecision, error) {
-	// Simple logic: everyone can create, only owner can update
-	if attribute == PostCreateAttribute {
-		return security.VoteDecision{State: security.AccessGranted}, nil
-	}
-	if actor.ID == subject.OwnerID {
-		return security.VoteDecision{State: security.AccessGranted}, nil
-	}
-	return security.VoteDecision{State: security.AccessDenied, Reason: "Actor is not the owner"}, nil
+func (v PostVoter) Vote(ctx context.Context, subject Actor, attribute security.Attribute, object Post) (security.VoteDecision, error) {
+	// Note: check if the subject has permissions, is owner, belongs to a tenancy, ReBAC, etc.
+	return security.VoteDecision{
+		State:  security.AccessGranted,
+		Reason: "...",
+	}, nil
 }
 
-// 2. Define a custom Authorizer struct (recommended pattern)
+// 2. Define a custom Authorizer struct
 type PostAuthorizer struct {
 	authorizer security.Authorizer[Actor, Post]
 }
@@ -88,12 +85,12 @@ func NewPostAuthorizer() *PostAuthorizer {
 	}
 }
 
-func (a *PostAuthorizer) AuthorizeCreate(ctx context.Context, actor Actor, post Post) error {
-	return a.authorizer.Authorize(ctx, actor, PostCreateAttribute, post)
+func (a *PostAuthorizer) AuthorizeCreate(ctx context.Context, subject Actor, object Post) error {
+	return a.authorizer.Authorize(ctx, subject, PostCreateAttribute, object)
 }
 
-func (a *PostAuthorizer) AuthorizeUpdate(ctx context.Context, actor Actor, post Post) error {
-	return a.authorizer.Authorize(ctx, actor, PostUpdateAttribute, post)
+func (a *PostAuthorizer) AuthorizeUpdate(ctx context.Context, subject Actor, object Post) error {
+	return a.authorizer.Authorize(ctx, subject, PostUpdateAttribute, object)
 }
 
 func main() {
